@@ -56,7 +56,6 @@ class MyModel(nn.Module):
 
         self.encoder = nn.LSTM(input_size=embedding_num,hidden_size=hidden_num,num_layers=1,bidirectional=False,batch_first=True)
         self.decoder = nn.LSTM(input_size=embedding_num+hidden_num,hidden_size=hidden_num,num_layers=1,bidirectional=False,batch_first=True)
-        self.attn = nn.Linear(hidden_num, 1)
         self.linear = nn.Linear(hidden_num,len(ch_to_index)+3)
         self.corss_loss = nn.CrossEntropyLoss()
 
@@ -66,7 +65,7 @@ class MyModel(nn.Module):
             decoder_hidden = encoder_hidden[0]
         query = decoder_hidden.permute(1,0,2)
         key = encoder_output
-        attweight = torch.softmax(self.attn(query * key),dim=1)
+        attweight = torch.softmax(torch.sum(query*key,dim=-1).unsqueeze(-1),dim=1)
         value = torch.bmm(attweight.permute(0,2,1),encoder_output)
         context = torch.repeat_interleave(value, decoder_input.shape[1], dim=1)
         feature = torch.cat((decoder_input, context), dim=2)
@@ -116,7 +115,7 @@ def translate(mydataset,ch_to_index,index_to_ch):
 
             query = decoder_hid[0].permute(1, 0, 2)
             key = encoder_output
-            attweight = torch.softmax(model.attn(query * key), dim=1)
+            attweight = torch.softmax(torch.sum(query*key,dim=-1).unsqueeze(-1), dim=1)
             value = torch.bmm(attweight.permute(0, 2, 1), encoder_output)
             context = torch.repeat_interleave(value, decoder_input.shape[1], dim=1)
             feature = torch.cat((decoder_input, context), dim=2)
